@@ -60,7 +60,12 @@ func newStatusCmd() *cobra.Command {
 			case svcErr != nil:
 				fmt.Printf("Service: unknown (%v)\n", svcErr)
 			case !installed:
-				fmt.Printf("Service: not installed (run 'corral install')\n")
+				// No launchd/systemd service — check for a direct corral process
+				if procPID, found := service.FindRunningProcess(); found {
+					fmt.Printf("Scheduler: running (pid %d, not managed by launchd)\n", procPID)
+				} else {
+					fmt.Printf("Service: not installed (run 'corral install')\n")
+				}
 			case running:
 				fmt.Printf("Service: running (pid %d)\n", pid)
 			default:
