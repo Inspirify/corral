@@ -7,6 +7,19 @@ linters:
     - unused
     - ineffassign
     - gocritic
+  settings:
+    errcheck:
+      exclude-functions:
+        - fmt.Fprintln
+        - fmt.Fprintf
+        - fmt.Printf
+        - (io.Closer).Close
+        - (*os.Process).Signal
+        - (*os.Process).Kill
+        - io.Copy
+  exclusions:
+    paths:
+      - ".*_test\\.go"
 formatters:
   enable:
     - gofmt

@@ -40,7 +40,7 @@ func (h *Harness) Run(ctx context.Context) error {
 		if err := lock.Acquire(); err != nil {
 			return fmt.Errorf("lock: %w", err)
 		}
-		defer lock.Release()
+		defer func() { _ = lock.Release() }()
 	}
 
 	// 2. Create log file
@@ -52,7 +52,7 @@ func (h *Harness) Run(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("logging: %w", err)
 	}
-	defer runLog.Close()
+	defer func() { _ = runLog.Close() }()
 
 	fmt.Printf("[corral] agent=%s log=%s\n", h.name, runLog.Path())
 

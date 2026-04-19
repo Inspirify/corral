@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -42,15 +43,30 @@ func newStopCmd() *cobra.Command {
 }
 
 func newStatusCmd() *cobra.Command {
-	return &cobra.Command{
+	var label string
+	cmd := &cobra.Command{
 		Use:   "status [agent]",
-		Short: "Show agent status and recent log activity",
+		Short: "Show service and agent status",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := config.Load(cfgFile)
 			if err != nil {
 				return err
 			}
+
+			// Show service status
+			installed, running, pid, svcErr := service.Status(label)
+			switch {
+			case svcErr != nil:
+				fmt.Printf("Service: unknown (%v)\n", svcErr)
+			case !installed:
+				fmt.Printf("Service: not installed (run 'corral install')\n")
+			case running:
+				fmt.Printf("Service: running (pid %d)\n", pid)
+			default:
+				fmt.Printf("Service: installed but not running\n")
+			}
+			fmt.Println()
 
 			if len(args) == 1 {
 				return showAgentStatus(cfg, args[0])
@@ -72,6 +88,8 @@ func newStatusCmd() *cobra.Command {
 			return nil
 		},
 	}
+	cmd.Flags().StringVar(&label, "label", "com.corral.scheduler", "service label")
+	return cmd
 }
 
 func newLogsCmd() *cobra.Command {
@@ -137,6 +155,7 @@ func newInstallCmd() *cobra.Command {
 				BinaryPath: binaryPath,
 				ConfigPath: configPath,
 				LogDir:     logDir,
+				EnvVars:    collectEnvRefs(configPath),
 			}
 
 			if err := service.Install(opts); err != nil {
@@ -219,7 +238,7 @@ func tailFile(path string, n int) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	var lines []string
 	scanner := bufio.NewScanner(f)
@@ -238,4 +257,30 @@ func tailFile(path string, n int) error {
 		fmt.Println(line)
 	}
 	return nil
+}
+
+// collectEnvRefs scans a config file for ${VAR} references and returns
+// a map of VAR→value from the current process environment.
+// Unset vars are silently skipped.
+func collectEnvRefs(configPath string) map[string]string {
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return nil
+	}
+	envPattern := regexp.MustCompile(`\$\{([A-Za-z_][A-Za-z0-9_]*)\}`)
+	matches := envPattern.FindAllSubmatch(data, -1)
+	if len(matches) == 0 {
+		return nil
+	}
+	result := make(map[string]string)
+	for _, m := range matches {
+		name := string(m[1])
+		if val, ok := os.LookupEnv(name); ok {
+			result[name] = val
+		}
+	}
+	if len(result) == 0 {
+		return nil
+	}
+	return result
 }
