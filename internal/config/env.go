@@ -3,7 +3,6 @@ package config
 import (
 	"os"
 	"regexp"
-	"strings"
 )
 
 var envPattern = regexp.MustCompile(`\$\{([A-Za-z_][A-Za-z0-9_]*)\}`)
@@ -51,7 +50,4 @@ func interpolateAll(cfg *Config) {
 
 	// Also expand ~ in defaults
 	cfg.Defaults.LogDir = expandPath(cfg.Defaults.LogDir)
-
-	// Expand ~ in agent paths for defaults that flowed down
-	_ = strings.Contains // keep import for potential future use
 }

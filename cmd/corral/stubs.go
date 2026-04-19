@@ -10,6 +10,7 @@ import (
 
 	"github.com/Inspirify/corral/internal/config"
 	"github.com/Inspirify/corral/internal/scheduler"
+	"github.com/Inspirify/corral/internal/service"
 	"github.com/spf13/cobra"
 )
 
@@ -105,25 +106,69 @@ func newLogsCmd() *cobra.Command {
 }
 
 func newInstallCmd() *cobra.Command {
-	return &cobra.Command{
+	var label string
+	cmd := &cobra.Command{
 		Use:   "install",
 		Short: "Install corral as a system service (launchd/systemd)",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cmd.Println("Not yet implemented")
+			cfg, err := config.Load(cfgFile)
+			if err != nil {
+				return err
+			}
+
+			binaryPath, err := os.Executable()
+			if err != nil {
+				return fmt.Errorf("finding binary path: %w", err)
+			}
+
+			configPath := cfgFile
+			if configPath == "" {
+				configPath = "corral.toml"
+			}
+			configPath, _ = filepath.Abs(configPath)
+
+			logDir := cfg.Defaults.LogDir
+			if logDir == "" {
+				logDir = filepath.Join(filepath.Dir(configPath), "logs")
+			}
+
+			opts := service.Options{
+				Label:      label,
+				BinaryPath: binaryPath,
+				ConfigPath: configPath,
+				LogDir:     logDir,
+			}
+
+			if err := service.Install(opts); err != nil {
+				return err
+			}
+			fmt.Printf("Service installed: %s\n", label)
+			fmt.Printf("Plist: %s\n", service.LaunchdInstallPath(label))
 			return nil
 		},
 	}
+	cmd.Flags().StringVar(&label, "label", "com.corral.scheduler", "service label")
+	return cmd
 }
 
 func newUninstallCmd() *cobra.Command {
-	return &cobra.Command{
+	var label string
+	cmd := &cobra.Command{
 		Use:   "uninstall",
 		Short: "Remove the system service",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cmd.Println("Not yet implemented")
+			opts := service.Options{
+				Label: label,
+			}
+			if err := service.Uninstall(opts); err != nil {
+				return err
+			}
+			fmt.Printf("Service removed: %s\n", label)
 			return nil
 		},
 	}
+	cmd.Flags().StringVar(&label, "label", "com.corral.scheduler", "service label")
+	return cmd
 }
 
 // findLastLog returns the path of the most recent log file for an agent.
