@@ -7,6 +7,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// Set via ldflags at build time by GoReleaser.
+var (
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
+)
+
 var cfgFile string
 
 func main() {
@@ -29,6 +36,7 @@ func main() {
 		newLogsCmd(),
 		newInstallCmd(),
 		newUninstallCmd(),
+		newVersionCmd(),
 	)
 
 	if err := root.Execute(); err != nil {
