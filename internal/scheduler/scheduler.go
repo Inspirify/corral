@@ -24,7 +24,7 @@ type Scheduler struct {
 // New creates a scheduler from the given configuration.
 func New(cfg *config.Config) *Scheduler {
 	return &Scheduler{
-		cron:    cron.New(cron.WithSeconds()),
+		cron:    cron.New(),
 		cfg:     cfg,
 		running: make(map[string]context.CancelFunc),
 	}
