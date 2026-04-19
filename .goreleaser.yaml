@@ -35,12 +35,15 @@ changelog:
       - "^test:"
 
 brews:
-  - repository:
+  - name: corral-agent
+    repository:
       owner: Inspirify
       name: homebrew-tap
     homepage: "https://github.com/Inspirify/corral"
     description: "Agent harness and scheduler. Run, schedule, and manage autonomous AI coding agents."
     license: "MIT"
+    conflicts:
+      - corral
     install: |
       bin.install "corral"
     test: |
