@@ -1,0 +1,6 @@
+bin/
+corral
+!cmd/corral/
+*.lock
+*.log
+.DS_Store
