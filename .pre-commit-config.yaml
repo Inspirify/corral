@@ -1,0 +1,30 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-merge-conflict
+
+  - repo: https://github.com/golangci/golangci-lint
+    rev: v2.1.6
+    hooks:
+      - id: golangci-lint
+
+  - repo: local
+    hooks:
+      - id: gofmt
+        name: gofmt
+        entry: bash -c 'out=$(gofmt -l "$@") && [ -z "$out" ] || (echo "$out"; exit 1)' --
+        language: system
+        types: [go]
+      - id: govulncheck
+        name: govulncheck
+        entry: govulncheck ./...
+        language: system
+        types: [go]
+        pass_filenames: false
+        stages: [pre-push]
+
+default_install_hook_types: [pre-commit, pre-push]

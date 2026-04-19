@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"text/tabwriter"
 	"os"
+	"text/tabwriter"
 
 	"github.com/Inspirify/corral/internal/config"
 	"github.com/spf13/cobra"
