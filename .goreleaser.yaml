@@ -1,0 +1,47 @@
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - main: ./cmd/corral
+    binary: corral
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X main.version={{.Version}} -X main.commit={{.ShortCommit}} -X main.date={{.Date}}
+
+archives:
+  - format: tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^chore:"
+      - "^ci:"
+      - "^test:"
+
+brews:
+  - repository:
+      owner: Inspirify
+      name: homebrew-tap
+    homepage: "https://github.com/Inspirify/corral"
+    description: "Agent harness and scheduler. Run, schedule, and manage autonomous AI coding agents."
+    license: "MIT"
+    install: |
+      bin.install "corral"
+    test: |
+      system "#{bin}/corral", "version"
