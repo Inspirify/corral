@@ -14,7 +14,11 @@ Corral is a single Go binary that manages the full lifecycle of autonomous AI co
 ## Quick Start
 
 ```bash
-# Install
+# Install via Homebrew
+brew tap inspirify/tap
+brew install corral-agent
+
+# Or install via Go
 go install github.com/Inspirify/corral@latest
 
 # Initialize a config
