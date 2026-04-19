@@ -162,7 +162,7 @@ func Uninstall(opts Options) error {
 	// Don't run launchctl if using a custom install path (testing)
 	if opts.InstallPath == "" {
 		cmd := exec.Command("launchctl", "unload", path)
-		cmd.CombinedOutput() // best-effort
+		_, _ = cmd.CombinedOutput() // best-effort
 	}
 
 	if err := os.Remove(path); err != nil {
