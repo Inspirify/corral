@@ -15,7 +15,7 @@ Corral is a single Go binary that manages the full lifecycle of autonomous AI co
 
 ```bash
 # Install
-go install github.com/nklizhe/corral@latest
+go install github.com/Inspirify/corral@latest
 
 # Initialize a config
 corral init
