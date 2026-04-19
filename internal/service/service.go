@@ -148,6 +148,28 @@ func Status(label string) (installed bool, running bool, pid int, err error) {
 	return installed, false, 0, nil
 }
 
+// FindRunningProcess looks for a running "corral start" process.
+// Returns (pid, found). This detects direct invocations that bypass launchd/systemd.
+func FindRunningProcess() (int, bool) {
+	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
+		return 0, false
+	}
+	// pgrep -f matches against the full command line.
+	cmd := exec.Command("pgrep", "-f", "corral start")
+	out, err := cmd.Output()
+	if err != nil {
+		return 0, false
+	}
+	myPID := os.Getpid()
+	for _, line := range bytes.Split(bytes.TrimSpace(out), []byte("\n")) {
+		var p int
+		if _, err := fmt.Sscanf(string(line), "%d", &p); err == nil && p > 0 && p != myPID {
+			return p, true
+		}
+	}
+	return 0, false
+}
+
 // Uninstall removes the service file and unloads it.
 func Uninstall(opts Options) error {
 	path := opts.InstallPath
