@@ -32,14 +32,31 @@ func newStartCmd() *cobra.Command {
 }
 
 func newStopCmd() *cobra.Command {
-	return &cobra.Command{
+	var (
+		label string
+		force bool
+	)
+	cmd := &cobra.Command{
 		Use:   "stop",
 		Short: "Stop the scheduler daemon",
+		Long: `Stop the running corral scheduler.
+
+For launchd-managed services, this unloads the service (the plist is preserved).
+Use 'corral install' to restart it. For a direct "corral start" process, this
+sends SIGTERM and waits for graceful shutdown.
+
+Use --force to send SIGKILL immediately instead of waiting for graceful exit.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cmd.Println("Not yet implemented — use Ctrl-C or launchctl/systemctl")
+			if err := service.StopScheduler(label, force); err != nil {
+				return err
+			}
+			fmt.Println("Scheduler stopped")
 			return nil
 		},
 	}
+	cmd.Flags().StringVar(&label, "label", "com.corral.scheduler", "service label")
+	cmd.Flags().BoolVarP(&force, "force", "f", false, "send SIGKILL instead of SIGTERM")
+	return cmd
 }
 
 func newStatusCmd() *cobra.Command {

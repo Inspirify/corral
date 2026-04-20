@@ -8,7 +8,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"syscall"
 	"text/template"
+	"time"
 )
 
 // Options configures service installation.
@@ -168,6 +170,108 @@ func FindRunningProcess() (int, bool) {
 		}
 	}
 	return 0, false
+}
+
+// StopScheduler finds and stops the running scheduler process.
+// It checks for a launchd-managed service first, then falls back
+// to finding a direct "corral start" process.
+func StopScheduler(label string, force bool) error {
+	// Check for launchd service first (macOS)
+	if runtime.GOOS == "darwin" {
+		installed, running, pid, err := Status(label)
+		if err == nil && installed && running {
+			return stopLaunchdService(label, pid, force)
+		}
+	}
+
+	// Fall back to direct process lookup
+	pid, found := FindRunningProcess()
+	if !found {
+		return fmt.Errorf("no running scheduler found")
+	}
+	return stopProcess(pid, force)
+}
+
+// stopLaunchdService stops a launchd-managed scheduler by unloading
+// the service plist. This prevents KeepAlive from restarting the process.
+// The plist file is preserved on disk so "corral install" can reload it.
+func stopLaunchdService(label string, pid int, force bool) error {
+	if force {
+		// Send SIGKILL directly before unloading
+		if p, err := os.FindProcess(pid); err == nil {
+			_ = p.Signal(syscall.SIGKILL)
+		}
+	}
+
+	// Unload the service — stops the process and prevents KeepAlive restart.
+	// The plist remains on disk (unlike Uninstall which deletes it).
+	path := LaunchdInstallPath(label)
+	cmd := exec.Command("launchctl", "unload", path)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("launchctl unload: %s: %w", string(bytes.TrimSpace(out)), err)
+	}
+
+	return waitForExit(pid, 30*time.Second)
+}
+
+// stopProcess sends a signal to a directly-invoked scheduler process.
+// Without --force: SIGTERM → wait 30s → SIGKILL escalation.
+// With --force: SIGKILL immediately.
+func stopProcess(pid int, force bool) error {
+	p, err := os.FindProcess(pid)
+	if err != nil {
+		return fmt.Errorf("finding process %d: %w", pid, err)
+	}
+
+	if force {
+		if err := p.Signal(syscall.SIGKILL); err != nil {
+			return fmt.Errorf("killing process %d: %w", pid, err)
+		}
+		return waitForExit(pid, 5*time.Second)
+	}
+
+	// Graceful: SIGTERM first
+	if err := p.Signal(syscall.SIGTERM); err != nil {
+		return fmt.Errorf("signaling process %d: %w", pid, err)
+	}
+
+	// Wait for graceful shutdown
+	if err := waitForExit(pid, 30*time.Second); err == nil {
+		return nil
+	}
+
+	// Escalate to SIGKILL
+	fmt.Printf("Process %d did not exit gracefully, sending SIGKILL...\n", pid)
+	if err := p.Signal(syscall.SIGKILL); err != nil {
+		// Process may have exited between the timeout and now
+		if !isProcessAlive(pid) {
+			return nil
+		}
+		return fmt.Errorf("killing process %d: %w", pid, err)
+	}
+	return waitForExit(pid, 5*time.Second)
+}
+
+// waitForExit polls until the process is no longer alive or the timeout expires.
+func waitForExit(pid int, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if !isProcessAlive(pid) {
+			return nil
+		}
+		time.Sleep(250 * time.Millisecond)
+	}
+	return fmt.Errorf("process %d did not exit within %v", pid, timeout)
+}
+
+// isProcessAlive checks whether a process with the given PID exists.
+func isProcessAlive(pid int) bool {
+	p, err := os.FindProcess(pid)
+	if err != nil {
+		return false
+	}
+	// Signal 0 checks existence without actually signaling.
+	return p.Signal(syscall.Signal(0)) == nil
 }
 
 // Uninstall removes the service file and unloads it.
