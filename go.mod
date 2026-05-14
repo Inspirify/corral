@@ -3,7 +3,7 @@ module github.com/Inspirify/corral
 go 1.26.2
 
 require (
-	github.com/pelletier/go-toml/v2 v2.3.0
+	github.com/pelletier/go-toml/v2 v2.3.1
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/spf13/cobra v1.10.2
 )
